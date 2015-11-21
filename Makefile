@@ -2,6 +2,7 @@
 all: runtest
 CC=gcc
 CFLAGS=-O2
+TESTFLAGS=-d
 
 %.to: %.c
 	gcc -g -O2 -c -D TEST -o $@ $<
@@ -9,7 +10,7 @@ CFLAGS=-O2
 test: test.o msgpack.to
 
 runtest: test
-	./test
+	./test $(TESTFLAGS)
 
 clean:
 	-rm -f *.to

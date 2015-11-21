@@ -27,6 +27,7 @@ mp_type mptype(unsigned char *id) {
 
 // returns the size of the data for this field
 int mplen(unsigned char *id) {
+  int len;
   if (*id <= 0x7f || *id >= 0xe0) {
      return 1;
   } else if (*id <= 0x9f) {
@@ -35,15 +36,20 @@ int mplen(unsigned char *id) {
      return *id & 0x1f;
   } else {
      unsigned char code = mp_lenmap[*id - 0xc0];
-     int len = code & 0x1f;
+     len = code & 0x1f;
      if (code & MP_REF) {
         switch(len) {
         case 1:
-          len = *(unsigned char *)(id+1);
+          len = *(id+1);
+          break;
         case 2:
           len = ntohs(*(unsigned short *)(id+1));
+          break;
         case 4:
           len = ntohl(*(unsigned long *)(id+1));
+          break;
+        default:
+	  len = -1;
         }
      } else if (code & MP_PLUS) {
        len++;

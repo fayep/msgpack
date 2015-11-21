@@ -4,6 +4,7 @@
 #define TEST
 #include "test.h"
 
+/* we define a weak testsuite here to resolve the testsuite requirement */
 __attribute__((weak)) void testsuite(void) {}
 
 void describe(char *name, char *data) {
