@@ -1,3 +1,6 @@
+#ifndef __TEST_H
+#define __TEST_H
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -14,4 +17,5 @@ void describe(char *name, char *data);
 int int_to_eql_expect(int a, int b);
 void result(int success);
 #define expect(type, foo, bar) result( type ## _expect( foo , bar ));
-#endif
+#endif // defined TEST
+#endif // ndefined __TEST_H
