@@ -43,19 +43,21 @@ int mplen(unsigned char *id) {
           len = *(id+1);
           break;
         case 2:
-          len = ntohs(*(unsigned short *)(id+1));
+          len = ntohs(*(unsigned short *)(id + 1));
           break;
         case 4:
-          len = ntohl(*(unsigned long *)(id+1));
+          len = ntohl(*(unsigned long *)(id + 1));
           break;
         default:
-	  len = -1;
+          // TODO: add error code
+	  return -1;
         }
      } else if (code & MP_PLUS) {
        len++;
      }
      return len;
   }
+  // TODO: add error code
   return -1;
 }
 
@@ -66,52 +68,47 @@ int nmpsizeof(unsigned char *id, int n, int s) {
   return p - id + 1;
 }
 
-// The length of a structure in terms of the space it takes up in msgpack format.
+// returns the size of this field
 int mpsizeof(unsigned char *id) {
   int len;
-  if (*id <= 0x7f || *id >= 0xe0 || (*id >= 0xc0 && *id <= 0xc3)) {
+  if (*id <= 0x7f || *id >= 0xe0) {
      return 1;
-  } else if (*id <= 0x8f) { /* map */
-     len = (*id & 0x0f) << 1;
-     return nmpsizeof(id, len, 1);
-  } else if (*id <= 0x9f) { /* array */
-     len = (*id & 0x0f);
-     return nmpsizeof(id, len, 1);
-  } else if (*id <= 0xbf) { /* string */
-     return 1 + (*id & 0x1f);
-  } else if (*id <= 0xc6) {
-     return (1 << (*id - 0xc4)) + 1;
-  } else if (*id <= 0xc9) {
-     return (1 << (*id - 0xc7)) + 1; // WRONG! Add the value at id+1.
-  } else if (*id <= 0xcb) {
-     return (1 << (*id - 0xc8)) + 1;
-  } else if (*id <= 0xcf) {
-     return (1 << (*id - 0xcc)) + 1;
-  } else if (*id <= 0xd3) {
-     return (1 << (*id - 0xd0)) + 1;
-  } else if (*id <= 0xd8) {
-     return (1 << (*id - 0xd4)) + 2;
-  } else if (*id == 0xd9) {
-     return *(id + 1) + 2;
-  } else if (*id == 0xda) {
-     return ntohs(*(unsigned short *)(id + 1)) + 3;
-  } else if (*id == 0xdb) {
-     return ntohl(*(unsigned long *)(id + 1)) + 5;
-  } else if (*id == 0xdc) {
-     len = ntohs(*(unsigned short *)(id + 1));
-     return nmpsizeof(id, len, 3);
-  } else if (*id == 0xdd) {
-     len = ntohl(*(unsigned long *)(id + 1));
-     return nmpsizeof(id, len, 5);
-  } else if (*id == 0xde) {
-     len = ntohs(*(unsigned short *)(id + 1)) << 1;
-     return nmpsizeof(id, len, 3);
-  } else { /* id == 0xdf */
-     len = ntohl(*(unsigned long *)(id + 1)) << 1;
-     return nmpsizeof(id, len, 5);
+  } else if (*id <= 0x8f) {
+     return nmpsizeof(id, (*id & 0x0f) << 1, 1);
+  } else if (*id <= 0x9f) {
+     return nmpsizeof(id, *id & 0x0f, 1);
+  } else if (*id <= 0xbf) {
+     return (*id & 0x1f) + 1;
+  } else {
+     unsigned char code = mp_lenmap[*id - 0xc0];
+     len = code & 0x1f;
+     if (code & MP_REF) {
+        int rlen;
+        switch(len) {
+        case 1:
+          rlen = *(id+1);
+          break;
+        case 2:
+          rlen = ntohs(*(unsigned short *)(id+1));
+          break;
+        case 4:
+          rlen = ntohl(*(unsigned long *)(id+1));
+          break;
+        default:
+	  return -1;
+        }
+        if (code & MP_OBJ) {
+          if (code & MP_PLUS) rlen <<= 1;
+          return nmpsizeof(id, rlen, len + 1);
+        } else {
+          len += rlen;
+        }
+     } else if (code & MP_PLUS) {
+       len++;
+     }
+     return len + 1;
   }
-  printf("Well, that was unexpected: %02x wasn't accounted for.\n", *id);
-  exit(1);
+  return -1;
 }
 
 #ifdef TEST

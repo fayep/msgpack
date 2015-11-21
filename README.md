@@ -10,7 +10,7 @@ You can build msgpack test suite and run it by running
 
 This will build the test harness and build the tests for the msgpack.c source.  It will then run the tests.
 
-Eventually, we will only build a msgpack.o if the tests pass.
+It will only build a msgpack.o if the tests pass.
 
 ## Usage
 

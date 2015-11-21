@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#define TEST
 #include "test.h"
 
 /* we define a weak testsuite here to resolve the testsuite requirement */
