@@ -8,6 +8,59 @@
    functions to work with msgpack format data.
 */
 
+const char *mp_typenames[] = {
+  "MP_FALSE",
+  "MP_TRUE",
+  "MP_UINT",
+  "MP_INT",
+  "MP_BIN",
+  "MP_STRING",
+  "MP_FLOAT",
+  "MP_EXT",
+  "MP_ARRAY",
+  "MP_MAP",
+  "MP_NIL",
+  "MP_UNUSED"
+};
+
+// The condensed 0xc0->0xdf type mapping
+const mp_type mp_typemap[] = {
+  MP_NIL, MP_UNUSED,
+  MP_FALSE, MP_TRUE,
+  MP_BIN, MP_BIN, MP_BIN,
+  MP_EXT, MP_EXT, MP_EXT,
+  MP_FLOAT, MP_FLOAT,
+  MP_UINT, MP_UINT, MP_UINT, MP_UINT,
+  MP_INT, MP_INT, MP_INT, MP_INT,
+  MP_EXT, MP_EXT, MP_EXT, MP_EXT, MP_EXT,
+  MP_STRING, MP_STRING, MP_STRING,
+  MP_ARRAY, MP_ARRAY,
+  MP_MAP, MP_MAP
+};
+
+// mask for a reference indicator
+const unsigned char MP_REF = 0x80;
+// mask for if the reference counts objects
+const unsigned char MP_OBJ = 0x20;
+// whether we should increment by 1 if not objects
+// whether we should double if objects (map)
+const unsigned char MP_PLUS = 0x40;
+// 0x1f = bytes following the key
+
+const unsigned char mp_lenmap[] = {
+  0x40, 0x40,
+  0x40, 0x40,
+  0x81, 0x82, 0x84,
+  0xc1, 0xc2, 0xc4,
+  0x04, 0x08,
+  0x01, 0x02, 0x04, 0x08,
+  0x01, 0x02, 0x04, 0x08,
+  0x02, 0x03, 0x05, 0x09, 0x11,
+  0x81, 0x82, 0x84,
+  0xa2, 0xa4,
+  0xe2, 0xe4
+};
+
 // returns the type of this field
 mp_type mptype(unsigned char *id) {
   if (*id <= 0x7f) {
@@ -112,7 +165,7 @@ int mpsizeof(unsigned char *id) {
 }
 
 // returns a pointer to the data
-mp_object *mpparse(unsigned char *id, mp_object *object) {
+mp_object *mpobject(unsigned char *id, mp_object *object) {
 
   if (*id <= 0x7f) {
      object->type = MP_UINT;
@@ -127,16 +180,16 @@ mp_object *mpparse(unsigned char *id, mp_object *object) {
   } else if (*id <= 0x8f) {
      object->type = MP_MAP;
      object->length = *id & 0x0f;
-     object->next = id + nmpsizeof(id, object->length << 1, 1);
+     object->next = id + 1;
      object->byteptr = id + 1;
   } else if (*id <= 0x9f) {
      object->type = MP_ARRAY;
      object->length = *id & 0x0f;
-     object->next = id + nmpsizeof(id, object->length, 1);
+     object->next = id + 1;
      object->byteptr = id + 1;
   } else if (*id <= 0xbf) {
      object->type = MP_STRING;
-     object->length = *id & 0x0f;
+     object->length = *id & 0x1f;
      object->next = id + object->length + 1;
      object->byteptr = id + 1;
   } else {
@@ -159,13 +212,9 @@ mp_object *mpparse(unsigned char *id, mp_object *object) {
 	  return NULL;
         }
         if (code & MP_OBJ) {
-          if (code & MP_PLUS) {
-            object->next = object->byteptr + nmpsizeof(object->byteptr, object->length << 1, 0);
-          } else {
-            object->next = object->byteptr + nmpsizeof(object->byteptr, object->length, 0);
-          }
+          object->next = object->byteptr;
         } else {
-          object->next = object->byteptr + object->length + 1;
+          object->next = object->byteptr + object->length;
         }
      } else if (code & MP_PLUS) {
        object->length++;
@@ -180,19 +229,19 @@ mp_object *mpparse(unsigned char *id, mp_object *object) {
 #include "test.h"
 void testsuite(void) {
 
-  describe("mpparse(map32) ", "\xdf\0\0\0\x01\xa5Hello\x01");
+  describe("mpobject(map32) ", "\xdf\0\0\0\x01\xa5Hello\x01");
   mp_object obj, key, value;
-  mpparse(test_data, &obj);
+  mpobject(test_data, &obj);
   expect(int_to_eql, obj.type, MP_MAP);
   expect(int_to_eql, obj.length, 1);
-  expect(int_to_eql, obj.next - test_data, 12);
+  expect(int_to_eql, obj.next - test_data, 5);
 
-  mpparse(obj.byteptr, &key);
+  mpobject(obj.byteptr, &key);
   expect(int_to_eql, key.type, MP_STRING);
   expect(int_to_eql, key.length, 5);
   expect(string_to_eql, "Hello", key.string, key.length);
 
-  mpparse(key.next, &value);
+  mpobject(key.next, &value);
   expect(int_to_eql, value.type, MP_UINT);
   expect(int_to_eql, value.length, 1);
   expect(int_to_eql, *value.byteptr, 1);
