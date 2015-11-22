@@ -1,5 +1,4 @@
 .PHONY: all clean buildobjects runtest
-.PRECIOUS: %.c %.o %.to %.t
 all: buildobjects
 CC ?= gcc
 CFLAGS ?= -O2

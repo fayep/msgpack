@@ -111,9 +111,91 @@ int mpsizeof(unsigned char *id) {
   return -1;
 }
 
+// returns a pointer to the data
+mp_object *mpparse(unsigned char *id, mp_object *object) {
+
+  if (*id <= 0x7f) {
+     object->type = MP_UINT;
+     object->length = 1;
+     object->next = id + 1;
+     object->byteptr = id;
+  } else if (*id >= 0xe0) {
+     object->type = MP_INT;
+     object->length = 1;
+     object->next = id + 1;
+     object->byteptr = id;
+  } else if (*id <= 0x8f) {
+     object->type = MP_MAP;
+     object->length = *id & 0x0f;
+     object->next = id + nmpsizeof(id, object->length << 1, 1);
+     object->byteptr = id + 1;
+  } else if (*id <= 0x9f) {
+     object->type = MP_ARRAY;
+     object->length = *id & 0x0f;
+     object->next = id + nmpsizeof(id, object->length, 1);
+     object->byteptr = id + 1;
+  } else if (*id <= 0xbf) {
+     object->type = MP_STRING;
+     object->length = *id & 0x0f;
+     object->next = id + object->length + 1;
+     object->byteptr = id + 1;
+  } else {
+     unsigned char code = mp_lenmap[*id - 0xc0];
+     object->type = mp_typemap[*id - 0xc0];
+     object->length = code & 0x1f;
+     if (code & MP_REF) {
+        object->byteptr = id + object->length + 1;
+        switch(object->length) {
+        case 1:
+          object->length = *(id+1);
+          break;
+        case 2:
+          object->length = ntohs(*(unsigned short *)(id + 1));
+          break;
+        case 4:
+          object->length = ntohl(*(unsigned long *)(id + 1));
+          break;
+        default:
+	  return NULL;
+        }
+        if (code & MP_OBJ) {
+          if (code & MP_PLUS) {
+            object->next = object->byteptr + nmpsizeof(object->byteptr, object->length << 1, 0);
+          } else {
+            object->next = object->byteptr + nmpsizeof(object->byteptr, object->length, 0);
+          }
+        } else {
+          object->next = object->byteptr + object->length + 1;
+        }
+     } else if (code & MP_PLUS) {
+       object->length++;
+     }
+  }
+  return object;
+}
+
+
+
 #ifdef TEST
 #include "test.h"
 void testsuite(void) {
+
+  describe("mpparse(map32) ", "\xdf\0\0\0\x01\xa5Hello\x01");
+  mp_object obj, key, value;
+  mpparse(test_data, &obj);
+  expect(int_to_eql, obj.type, MP_MAP);
+  expect(int_to_eql, obj.length, 1);
+  expect(int_to_eql, obj.next - test_data, 12);
+
+  mpparse(obj.byteptr, &key);
+  expect(int_to_eql, key.type, MP_STRING);
+  expect(int_to_eql, key.length, 5);
+  expect(string_to_eql, "Hello", key.string, key.length);
+
+  mpparse(key.next, &value);
+  expect(int_to_eql, value.type, MP_UINT);
+  expect(int_to_eql, value.length, 1);
+  expect(int_to_eql, *value.byteptr, 1);
 
   describe("mptype(minposfixint) ", "\x00");
   expect(int_to_eql, mptype(test_data), MP_UINT);

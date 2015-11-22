@@ -57,6 +57,25 @@ const unsigned char mp_lenmap[] = {
   0xe2, 0xe4
 };
 
+typedef struct {
+  mp_type type;
+  int length;
+  unsigned char *next;
+  union {
+    unsigned char *byteptr;
+    char *string;
+    unsigned short *uwordptr;
+    short *wordptr;
+    unsigned long *ulongptr;
+    long *longptr;
+    unsigned long long *ullptr;
+    long long *llptr;
+    float *floatptr;
+    double *doubleptr;
+  };
+} mp_object;
+
+
 mp_type mptype(unsigned char *id);
 
 // returns the size of the data for this field
