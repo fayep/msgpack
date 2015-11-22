@@ -115,9 +115,6 @@ int mpsizeof(unsigned char *id) {
 #include "test.h"
 void testsuite(void) {
 
-  describe("arithmetic(2+2) ", "2+2");
-  expect(int_to_eql, 2+2,4);
-
   describe("mptype(minposfixint) ", "\x00");
   expect(int_to_eql, mptype(test_data), MP_UINT);
 

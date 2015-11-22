@@ -1,21 +1,25 @@
 .PHONY: all clean buildobjects runtest
+.PRECIOUS: %.c %.o %.to %.t
 all: buildobjects
 CC ?= gcc
 CFLAGS ?= -O2
-DEBUGCFLAGS = $(CFLAGS) -g
+DEBUGFLAGS = -g3
 TESTFLAGS ?= -d
-TARGETS = msgpack
+TARGETS = test msgpack
 TEST_TARGETS = $(addsuffix .t,$(TARGETS))
 OBJECTS = $(addsuffix .o,$(TARGETS))
 
+test.t: test.to
+	gcc $(DEBUGFLAGS) -o $@ $<
+
 %.t: %.to test.to
-	gcc -o $@ $^
+	gcc $(DEBUGFLAGS) -o $@ $^
 
 %.o: %.c
 	gcc $(CFLAGS) -c -o $@ $<
 
 %.to: %.c
-	gcc $(DEBUGCFLAGS) -c -D TEST -o $@ $<
+	gcc $(DEBUGFLAGS) -c -D TEST -o $@ $<
 
 runtest: $(TEST_TARGETS)
 	@for t in $(TEST_TARGETS); do cmd="./$$t $(TESTFLAGS)"; echo "Running tests: $$t"; $$cmd; done

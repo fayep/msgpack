@@ -14,8 +14,9 @@ char test_result[1000];
 
 void describe(char *name, char *data);
 int int_to_eql_expect(int a, int b);
+int string_to_eql_expect(char *a, char *b, int length);
 void result(int success);
 
-#define expect(type, foo, bar) result( type ## _expect( foo , bar ));
+#define expect(type, args...) result( type ## _expect( args ));
 
 #endif // ndefined __TEST_H
